@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
   useColorMode,
   useColorModeValue,
+  useToast,
   chakra,
   Box,
   Stack,
@@ -17,15 +18,16 @@ import {
 import _ from 'lodash';
 import axios from 'axios';
 import Section from './section';
+import FormContext from '../../store/form-context';
 
-const Form = (props) => {
+const Form = React.memo((props) => {
   const { toggleColorMode } = useColorMode();
-  const bg = useColorModeValue('gray.100', 'gray.800');
+  const toast = useToast();
+  const bg = useColorModeValue('gray.200', 'gray.800');
   const SwitchIcon = useColorModeValue(FaMoon, FaSun);
-  const [sectionOrderState, setSectionOrderState] = useState(1);
-  const [mainTitle, setMainTitle] = useState('');
-  const [mainDescription, setMainDescription] = useState('');
-  const [numOfSections, setNumOfSections] = useState(0);
+  const ctx = useContext(FormContext);
+  const [sectionOrderState, setSectionOrderState] = useState(0);
+  const [formData, setFormData] = useState({});
 
   useEffect(() => {
     try {
@@ -34,11 +36,8 @@ const Form = (props) => {
           const res = await axios.get(
             'https://gist.githubusercontent.com/bittermeatball/7854f3d7950469b0203a068fcaf27908/raw/1de87462c4f8c2fd0bfb9d452b246c92697b2eee/sample.json'
           );
-          const data = res.data;
-          setMainTitle(_.get(data, 'title', ''));
-          setMainDescription(_.get(data, 'description', ''));
-          setNumOfSections(_.get(data, 'sections.length', 0));
-          console.log(data);
+
+          setFormData(res.data);
         } catch (error) {
           throw new Error(error);
         }
@@ -50,15 +49,40 @@ const Form = (props) => {
     }
   }, []);
 
+  useEffect(() => {
+    if (formData.sections) {
+      ctx.resetSections(formData.sections);
+    }
+  }, [ctx, formData.sections]);
+
+  const mainTitle = _.get(formData, 'title', '');
+  const mainDescription = _.get(formData, 'description', '');
+  const numOfSections = _.get(formData, 'sections.length', 0);
+
   const clickBackHandler = () => {
+    ctx.updateQuestionsToSections(sectionOrderState);
     setSectionOrderState(sectionOrderState - 1);
   };
 
   const clickNextHandler = () => {
-    setSectionOrderState(sectionOrderState + 1);
+    const res = ctx.checkFormValid(sectionOrderState);
+    if (!res) {
+      (() =>
+        toast({
+          title: 'Đã xảy ra lỗi',
+          description: 'Có lỗi xảy ra, kiểm tra lại các ô có hợp lệ hay không',
+          position: 'top-right',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        }))();
+      return;
+    }
+    if (res) {
+      ctx.updateQuestionsToSections(sectionOrderState);
+      setSectionOrderState(sectionOrderState + 1);
+    }
   };
-
-  console.log(sectionOrderState);
 
   return (
     <React.Fragment>
@@ -79,6 +103,8 @@ const Form = (props) => {
         px={{ base: '2%', md: '10%' }}
         py={24}
         mx="auto"
+        w={{ base: 'full', md: 'full' }}
+        h="100vh"
       >
         <Box
           pos={{ base: 'relative', md: 'fixed' }}
@@ -104,7 +130,7 @@ const Form = (props) => {
             {mainDescription}
           </chakra.p>
           <Stack direction="row">
-            {sectionOrderState > 1 && (
+            {sectionOrderState > 0 && (
               <Button
                 leftIcon={<IoChevronBackCircleOutline />}
                 colorScheme="blue"
@@ -114,7 +140,7 @@ const Form = (props) => {
                 Back
               </Button>
             )}
-            {sectionOrderState < numOfSections && (
+            {sectionOrderState < numOfSections - 1 && (
               <Button
                 rightIcon={<IoChevronForwardCircleOutline />}
                 colorScheme="blue"
@@ -132,11 +158,30 @@ const Form = (props) => {
           ml={{ md: '40%' }}
           textAlign="center"
         >
-          <Section />
+          {ctx.sections.length >= 1 && (
+            <Section
+              title={
+                ctx.sections[sectionOrderState].title
+                  ? ctx.sections[sectionOrderState].title
+                  : ''
+              }
+              description={
+                ctx.sections[sectionOrderState].description
+                  ? ctx.sections[sectionOrderState].description
+                  : ''
+              }
+              index={sectionOrderState}
+              questions={
+                ctx.sections && ctx.sections[sectionOrderState].questions
+                  ? ctx.sections[sectionOrderState].questions
+                  : []
+              }
+            />
+          )}
         </Box>
       </Flex>
     </React.Fragment>
   );
-};
+});
 
 export default Form;

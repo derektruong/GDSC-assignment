@@ -15,16 +15,11 @@ const breakpoints = createBreakpoints({
 
 const colors = {
   brand: {
-      50: "#ecefff",
-      100: "#cbceeb",
-      200: "#a9aed6",
-      300: "#888ec5",
-      400: "#666db3",
-      500: "#4d5499",
-      600: "#912F40",
-      700: "#702632",
-      800: "#181c37",
-      900: "#080819",
+      100: "#E63946",
+      200: "#F1FAEE",
+      300: "#A8DADC",
+      400: "#457B9D",
+      500: "#1D3557",
   },
 };
 const config = {
